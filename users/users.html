@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Backbone.js Users Sample</title>
+<style type="text/css">
+#list {
+    position: absolute;
+    width: 50%;
+}
+.users {
+    list-style: none;
+}
+.user {
+    cursor: pointer;
+    border: solid 1px #ccc;
+}
+.user:hover {
+    border: dotted 1px #000;
+}
+#form {
+    position: absolute;
+    margin: 16px 0px;
+    padding: 0px 40px;
+    left: 50%;
+}
+</style>
+</head>
+<body>
+<div id='list'></div>
+<div id='form'></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.3.3/backbone-min.js"></script>
+<script type="text/javascript">
+(function() {
+
+var User = Backbone.Model.extend({
+    urlRoot: 'http://jsonplaceholder.typicode.com/users/',
+});
+
+var Users = Backbone.Collection.extend({
+    model: User,
+    url: 'http://jsonplaceholder.typicode.com/users/',
+});
+
+var UsersView = Backbone.View.extend({
+    tagName: 'ul',
+    className: 'users',
+    initialize: function() {
+        this.collection.on('add', this.add, this);
+    },
+    add: function(model) {
+        var newView = new UserView({model: model});
+        this.$el.append(newView.render().el);
+    },
+    render: function() {
+        this.$el.html(new AddUserView({collection: this.collection}).render().el);
+        this.collection.each(function(m) {
+            this.$el.append(new UserView({model: m, id: m.id}).render().el);
+        }, this);
+        return this;
+    }
+});
+
+var UserView = Backbone.View.extend({
+    tagName: 'li',
+    className: 'user',
+    initialize: function() {
+        this.model.on('destroy', this.remove, this);
+        this.model.on('change', this.render, this);
+    },
+    remove: function() {
+        this.$el.remove();
+    },
+    events: {
+        'click': 'select',
+    },
+    select: function() {
+        FormController.show(new FormView({model: this.model})).showDesc();
+    },
+    render: function() {
+        this.$el.html(this.model.get('name'));
+        return this;
+    }
+});
+
+var AddUserView = Backbone.View.extend({
+    tagName: 'li',
+    events: {
+        'click .add': 'add',
+    },
+    add: function() {
+        var newUser = new User({
+            name: 'no name',
+            email: 'no.name@example.com',
+            collection: this.collection,
+        });
+        FormController.show(new FormView({model: newUser})).showEditor();
+    },
+    render: function() {
+        this.$el.html($('<input type="button" />').addClass('add').val('ADD'));
+        return this;
+    }
+});
+
+var FormController = FormController || {
+    close: function() {
+        if (this.currentView) {
+            this.currentView.close();
+        }
+        $('form').empty();
+    },
+    show: function(view) {
+        this.close();
+        this.currentView = view;
+        this.currentView.render();
+        $("#form").html(this.currentView.el);
+        return this.currentView;
+    },
+}
+
+var FormView = Backbone.View.extend({
+    tagName: 'form',
+    close: function() {
+      this.remove();
+      this.unbind();
+      this.model.unbind('destory', this.remove, this);
+    },
+    events: {
+        'click .save': 'save',
+        'click .edit': 'edit',
+        'click .destroy': 'destroy',
+    },
+    save: function() {
+        var collection = this.model.get('collection')
+        if (collection) {
+            this.model.unset('collection');
+            collection.create(this.model, {
+                wait: true,
+                success: function(collection, resp, options) {
+                    console.log(resp);
+                }
+            });
+        } else {
+            this.model.save({
+                name: $('.name').val(),
+                email: $('.email').val(),
+            },{
+                success: function(model, resp, options) {
+                    console.log(resp);
+                }
+            });
+        }
+        this.showDesc();
+    },
+    edit: function() {
+        this.showEditor();
+    },
+    destroy: function() {
+        if (confirm('Do you wish to delete  "' + this.model.get('name') +'" ?')) {
+            this.model.destroy({
+                success: function(model, resp, options) {
+                    console.log(resp);
+                }
+            });
+            FormController.close();
+        }
+    },
+    showDesc: function() {
+        $('#form .save').hide();
+        $('#form .edit').show();
+        $('#form .destroy').show();
+        $('#form .name').prop('disabled', true);
+        $('#form .email').prop('disabled', true);
+        return this;
+    },
+    showEditor: function() {
+        $('#form .save').show();
+        $('#form .edit').hide();
+        $('#form .destroy').hide();
+        $('#form .name').prop('disabled', false);
+        $('#form .email').prop('disabled', false);
+        return this;
+    },
+    render: function() {
+        this.$el.empty();
+        this.$el.append($('<input type="button" />').addClass('save').val('SAVE'));
+        this.$el.append($('<input type="button" />').addClass('edit').val('EDIT'));
+        this.$el.append($('<input type="button" />').addClass('destroy').val('DELETE'));
+        this.$el.append($('<div></div>').text('Name'));
+        this.$el.append($('<input/>').addClass('name').val(this.model.get('name')));
+        this.$el.append($('<div></div>').text('E-mail'));
+        this.$el.append($('<input/>').addClass('email').val(this.model.get('email')));
+        return this;
+    }
+});
+
+new Users().fetch({
+    success: function(collection, resp, options) {
+        $('#list').append(new UsersView({collection: collection}).render().el);
+    }
+});
+
+})();
+</script>
+</body>
+</html>
