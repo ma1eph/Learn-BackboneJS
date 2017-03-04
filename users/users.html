@@ -36,12 +36,12 @@
 (function() {
 
 var User = Backbone.Model.extend({
-    urlRoot: 'http://jsonplaceholder.typicode.com/users/',
+    urlRoot: 'https://jsonplaceholder.typicode.com/users/',
 });
 
 var Users = Backbone.Collection.extend({
     model: User,
-    url: 'http://jsonplaceholder.typicode.com/users/',
+    url: 'https://jsonplaceholder.typicode.com/users/',
 });
 
 var UsersView = Backbone.View.extend({
